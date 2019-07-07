@@ -3,7 +3,9 @@ guid: a81fe6bafe76aff4bbd50368381bf4b2
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - _editorTemplate: {fileID: 4900000, guid: 62200320f78f2424aa0109b50c0d50e9, type: 3}
+  - _propertyDrawerTemplate: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
