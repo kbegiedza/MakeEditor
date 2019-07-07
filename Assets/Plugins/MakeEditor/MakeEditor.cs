@@ -104,7 +104,7 @@ namespace Bloodstone.MakeEditor
             var code = File.ReadAllLines(template).ToList();
 
             var type = s.GetClass();
-            int namespaceIndex = code.FindIndex(str => str.Equals("#NAMESPACE#"));
+            int namespaceIndex = code.FindIndex(str => str.Contains("#NAMESPACE#"));
             if (type.Namespace != null)
             {
                 for (int i = namespaceIndex + 1; i < code.Count; ++i)
@@ -116,7 +116,8 @@ namespace Bloodstone.MakeEditor
                 }
 
                 code[namespaceIndex] = "{";
-                code.Insert(namespaceIndex, $"namespace { type.Namespace }");
+                string buf = code[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
+                code.Insert(namespaceIndex, buf);
                 code.Add("}");
             }
             else
