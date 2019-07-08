@@ -115,9 +115,9 @@ namespace Bloodstone.MakeEditor
                     }
                 }
 
+                string usedNamespace = code[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
                 code[namespaceIndex] = "{";
-                string buf = code[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
-                code.Insert(namespaceIndex, buf);
+                code.Insert(namespaceIndex, usedNamespace);
                 code.Add("}");
             }
             else
