@@ -125,7 +125,6 @@ namespace Bloodstone.MakeEditor
                 code.RemoveAt(namespaceIndex);
             }
 
-            //namespace
             for (int i = 0; i < code.Count; ++i)
             {
                 code[i] = code[i].Replace("#CLASS_NAME#", type.Name);
