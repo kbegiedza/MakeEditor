@@ -105,13 +105,19 @@ namespace Bloodstone.MakeEditor
             {
                 var rootPath = Path.GetDirectoryName(asmPath);
                 var editorPath = Path.Combine(rootPath, "Editor");
-                Debug.Log($"Assembly Root path: {rootPath} \n Editor path: {editorPath}");
+                //Debug.Log($"Assembly Root path: {rootPath} \n Editor path: {editorPath}");
+
+                var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
+                var dirPath = Path.Combine(editorPath, pathMod);
+                Debug.Log($"dir path: {dirPath}");
+                var name = Path.GetFileNameWithoutExtension(subjectPath);
+                var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
+                Debug.Log($"Creating simply in editor folder: {outputPath}");
             }
             else
             {
                 var rootPath = "Assets";
                 var editorPath = Path.Combine(rootPath, "Editor");
-                
                 var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length+1)); //+1 to remove '/'
 
                 var dirPath = Path.Combine(editorPath, pathMod);
