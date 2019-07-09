@@ -1,9 +1,9 @@
 {
-    "name": "NewAssembly",
-    "references": [
+	"name": "TestAsm.Editor",
+	"references": [
         "GUID:9bcbeecd37fe656438048dcc77657edf"
     ],
-    "optionalUnityReferences": [],
+	"optionalUnityReferences": [],
     "includePlatforms": [
         "Editor"
     ],
