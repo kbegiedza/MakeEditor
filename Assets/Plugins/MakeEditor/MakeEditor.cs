@@ -112,7 +112,23 @@ namespace Bloodstone.MakeEditor
                 Debug.Log($"dir path: {dirPath}");
                 var name = Path.GetFileNameWithoutExtension(subjectPath);
                 var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
-                Debug.Log($"Creating simply in editor folder: {outputPath}");
+                Debug.Log($"Creating with asmdef if needed in editor folder: {outputPath}");
+
+                if (File.Exists(outputPath))
+                {
+                    outputPath = GenerateNotExistingName(outputPath);
+                }
+
+                var requiredDirectory = Path.GetDirectoryName(outputPath);
+                Directory.CreateDirectory(requiredDirectory);
+
+                File.WriteAllText(outputPath, scriptContent);
+                AssetDatabase.Refresh();
+
+                DoShitWithAssembly(script, subjectPath, outputPath);
+                AssetDatabase.Refresh();
+
+                return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
             }
             else
             {
@@ -139,12 +155,6 @@ namespace Bloodstone.MakeEditor
 
                 return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
             }
-
-            //DoShitWithAssembly(script, subjectPath, outputPath);
-            //AssetDatabase.Refresh();
-
-
-            return null;
         }
 
         private static string PrepareScriptContent(string template, MonoScript s)
