@@ -99,6 +99,8 @@ namespace Bloodstone.MakeEditor
 
             var scriptContent = PrepareScriptContent(_editorTemplatePath, script);
 
+            //todo: create in parent asmdef directory - similar hierarchy to scripts
+            //todo: sub asm def support
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
             //if is under asmdef
             if (asmPath != null)
