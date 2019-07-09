@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using UnityEditor;
-using UnityEditor.ProjectWindowCallback;
+using UnityEditor.Compilation;
 using UnityEngine;
 
 namespace Bloodstone.MakeEditor
@@ -11,55 +11,58 @@ namespace Bloodstone.MakeEditor
     [InitializeOnLoad]
     public class MakeEditor
     {
+        private readonly static HashSet<string> _buildInAssemblyDefinitions = new HashSet<string>
+        {
+            "Assembly-CSharp-firstpass",
+            "Assembly-CSharp-Editor-firstpass",
+            "Assembly-CSharp",
+            "Assembly-CSharp-Editor",
+        };
+
         private static string _editorTemplate;
 
         static MakeEditor()
         {
+            //todo: add error handling
             var pluginAsmdef = AssetDatabase.FindAssets($"t:asmdef Bloodstone.MakeEditor")[0];
             var pluginPath = AssetDatabase.GUIDToAssetPath(pluginAsmdef);
 
+            //todo: add error handling
             _editorTemplate = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "editor_template.txt");
-            Debug.Log(_editorTemplate);
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
         public static void CreateEditorScript()
         {
-            var selected = Selection.objects;
-            if (selected.Length > 1)
-            {
-                //use Selection Get
-                throw new NotImplementedException();
-                //filter-out non MonoScript stuff
-                //create standard editor or for each selected?
-            }
-            else if (selected.Length == 1)
-            {
-                var firstSelected = selected[0];
-                var firstSelectedPath = AssetDatabase.GetAssetPath(firstSelected);
-                Debug.Log($"first Selected path: {firstSelectedPath}");
+            var selection = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
 
-                var dirPath = Path.GetDirectoryName(firstSelectedPath);
-                var path = Path.Combine(dirPath, "Editor", $"{firstSelected.name}Editor.cs");
+            UnityEngine.Object lastCreatedObject = null;
 
+            foreach (var selected in selection)
+            {
+                var selectedPath = AssetDatabase.GetAssetPath(selected);
+
+                var dirPath = Path.GetDirectoryName(selectedPath);
+                var path = Path.Combine(dirPath, "Editor", $"{selected.name}Editor.cs");
 
                 if (File.Exists(path))
                 {
-                    GenerateNotExistingName(path);
+                    path = GenerateNotExistingName(path);
                 }
 
+                var requiredDirectory = Path.GetDirectoryName(path);
+                Directory.CreateDirectory(requiredDirectory);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                lastCreatedObject = CreateScriptAsset(selectedPath, path);
+            }
 
-                var created = CreateScriptAsset(firstSelectedPath, path);
-                if (created)
-                {
-                    Selection.activeObject = created;
-                }
+            if(lastCreatedObject != null)
+            {
+                Selection.activeObject = lastCreatedObject;
             }
         }
 
-        private static void GenerateNotExistingName(string path)
+        private static string GenerateNotExistingName(in string path)
         {
             var directory = Path.GetDirectoryName(path);
             var fileName = Path.GetFileNameWithoutExtension(path);
@@ -67,7 +70,7 @@ namespace Bloodstone.MakeEditor
 
             var newFileName = fileName + extension;
 
-            path = Path.Combine(directory, newFileName);
+            return Path.Combine(directory, newFileName);
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
@@ -86,21 +89,23 @@ namespace Bloodstone.MakeEditor
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
             if (script == null)
             {
-                Debug.LogWarning("Select target script");
+                Debug.LogError("Select valid MonoScript object");
 
                 return null;
             }
 
-            var content = PrepareContent(_editorTemplate, subjectPath, script);
+            var scriptContent = PrepareScriptContent(_editorTemplate, subjectPath, script, outputPath);
 
-            File.WriteAllText(outputPath, content);
+            File.WriteAllText(outputPath, scriptContent);
 
             AssetDatabase.Refresh();
             return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
         }
 
-        private static string PrepareContent(string template, string target, MonoScript s)
+        private static string PrepareScriptContent(string template, string targetPath , MonoScript s, string outpath)
         {
+            DoShitWithAssembly(s, targetPath, outpath);
+
             var code = File.ReadAllLines(template).ToList();
 
             var type = s.GetClass();
@@ -133,6 +138,29 @@ namespace Bloodstone.MakeEditor
             var finalCode = string.Join("\n", code.ToArray());
 
             return finalCode;
+        }
+
+        private static void DoShitWithAssembly(MonoScript s, string sPath, string outPath)
+        {
+            var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(sPath);
+
+            //script is in default asmdef
+            if(asmPath == null)
+            {
+                return;
+            }
+
+            Debug.Log("Src asm: " + asmPath);
+
+            var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(outPath);
+            if(outasmPath != null)
+            {
+                // asmdef creation required
+            }
+
+            // check is asmdef valid
+            // * is editor
+            // * is asmPath referenced
         }
     }
 }
