@@ -59,7 +59,7 @@ namespace Bloodstone.MakeEditor
                 lastCreatedObject = CreateScriptAsset(selectedPath);
             }
 
-            if(lastCreatedObject != null)
+            if (lastCreatedObject != null)
             {
                 Selection.activeObject = lastCreatedObject;
             }
@@ -106,20 +106,7 @@ namespace Bloodstone.MakeEditor
             if (asmPath != null)
             {
                 var rootPath = Path.GetDirectoryName(asmPath);
-                var editorPath = Path.Combine(rootPath, "Editor");
-                //Debug.Log($"Assembly Root path: {rootPath} \n Editor path: {editorPath}");
-
-                var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
-                var dirPath = Path.Combine(editorPath, pathMod);
-                Debug.Log($"dir path: {dirPath}");
-                var name = Path.GetFileNameWithoutExtension(subjectPath);
-                var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
-                Debug.Log($"Creating with asmdef if needed in editor folder: {outputPath}");
-
-                if (File.Exists(outputPath))
-                {
-                    outputPath = GenerateNotExistingName(outputPath);
-                }
+                string outputPath = GetScriptPath(rootPath, subjectPath);
 
                 var requiredDirectory = Path.GetDirectoryName(outputPath);
                 Directory.CreateDirectory(requiredDirectory);
@@ -127,7 +114,8 @@ namespace Bloodstone.MakeEditor
                 File.WriteAllText(outputPath, scriptContent);
                 AssetDatabase.Refresh();
 
-                DoShitWithAssembly(script, subjectPath, outputPath);
+                //DoShitWithAssembly(script, subjectPath, outputPath);
+                CreateAssembly(asmPath, outputPath);
                 AssetDatabase.Refresh();
 
                 return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
@@ -135,19 +123,7 @@ namespace Bloodstone.MakeEditor
             else
             {
                 var rootPath = "Assets";
-                var editorPath = Path.Combine(rootPath, "Editor");
-                var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length+1)); //+1 to remove '/'
-
-                var dirPath = Path.Combine(editorPath, pathMod);
-                Debug.Log($"dir path: {dirPath}");
-                var name = Path.GetFileNameWithoutExtension(subjectPath);
-                var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
-                Debug.Log($"Creating simply in editor folder: {outputPath}");
-
-                if (File.Exists(outputPath))
-                {
-                    outputPath = GenerateNotExistingName(outputPath);
-                }
+                string outputPath = GetScriptPath(rootPath, subjectPath);
 
                 var requiredDirectory = Path.GetDirectoryName(outputPath);
                 Directory.CreateDirectory(requiredDirectory);
@@ -157,6 +133,68 @@ namespace Bloodstone.MakeEditor
 
                 return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
             }
+        }
+
+        private static void CreateAssembly(string subjectAsmDefPath, string newEditorScriptPath)
+        {
+            Debug.Log($"Subject assembly: {subjectAsmDefPath} for created editor script {newEditorScriptPath}");
+
+            var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
+            if (outasmPath != null)
+            {
+                var str = File.ReadAllText(outasmPath);
+                AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
+                if (!asmdef.includePlatforms.Contains("Editor"))
+                {
+                    var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
+                    var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
+
+                    var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
+                    var editorPath = Path.Combine(rootPath, "Editor");
+
+                    var editorAsmDef = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
+                    Debug.Log($"editor asmdef path: {editorAsmDef }");
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(editorAsmDef));
+
+                    var code = File.ReadAllLines(_asmdefTemplatePath).ToList();
+
+                    for (int i = 0; i < code.Count; ++i)
+                    {
+                        code[i] = code[i].Replace("#ASM_NAME#", refName);
+                        code[i] = code[i].Replace("#REFERENCES#", $"\"GUID:{guidRef}\"");
+                    }
+
+                    var finalCode = string.Join("\n", code.ToArray());
+                    File.WriteAllText(editorAsmDef, finalCode);
+                }
+
+                // check is asmdef valid
+                // * is editor
+                // * is asmPath referenced
+            }
+            else
+            {
+                // ayyy lmao wtf just happened?
+            }
+        }
+
+        private static string GetScriptPath(string rootPath, string subjectPath)
+        {
+            var editorPath = Path.Combine(rootPath, "Editor");
+            var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
+
+            var dirPath = Path.Combine(editorPath, pathMod);
+            Debug.Log($"dir path: {dirPath}");
+            var name = Path.GetFileNameWithoutExtension(subjectPath);
+            var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
+
+            if (File.Exists(outputPath))
+            {
+                outputPath = GenerateNotExistingName(outputPath);
+            }
+
+            return outputPath;
         }
 
         private static string PrepareScriptContent(string template, MonoScript s)
@@ -193,62 +231,6 @@ namespace Bloodstone.MakeEditor
             var finalCode = string.Join("\n", code.ToArray());
 
             return finalCode;
-        }
-
-        private static void DoShitWithAssembly(MonoScript s, string sPath, string outPath)
-        {
-            var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(sPath);
-
-            //script is in default asmdef
-            if(asmPath == null)
-            {
-                return;
-            }
-
-            Debug.Log("Src asm: " + asmPath);
-
-            var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(outPath);
-
-            Debug.Log($"out asm: {outasmPath}");
-
-            if (outasmPath != null)
-            {
-                var str = File.ReadAllText(outasmPath);
-                AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
-                if(!asmdef.includePlatforms.Contains("Editor"))
-                {
-                    // asmdef creation required
-                    CreateAsmdef(asmPath, outPath);
-                }
-            
-                // check is asmdef valid
-                // * is editor
-                // * is asmPath referenced
-            }
-        }
-
-        private static void CreateAsmdef(string refAsm, string outPath)
-        {
-            Debug.Log("Create asmdef");
-            var refName = Path.GetFileNameWithoutExtension(refAsm);
-            var guidRef = AssetDatabase.AssetPathToGUID(refAsm);
-
-            var dir = Path.GetDirectoryName(outPath);
-            dir = Path.Combine(dir, $"{refName}.Editor.asmdef");
-
-            Directory.CreateDirectory(Path.GetDirectoryName(dir));
-
-            var code = File.ReadAllLines(_asmdefTemplatePath).ToList();
-            
-            for (int i = 0; i < code.Count; ++i)
-            {
-                code[i] = code[i].Replace("#ASM_NAME#", refName);
-                code[i] = code[i].Replace("#REFERENCES#", $"\"GUID:{guidRef}\"");
-            }
-
-            var finalCode = string.Join("\n", code.ToArray());
-
-            File.WriteAllText(dir, finalCode);
         }
     }
 
