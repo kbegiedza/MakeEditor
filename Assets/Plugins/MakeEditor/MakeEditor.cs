@@ -36,23 +36,11 @@ namespace Bloodstone.MakeEditor
         {
             var selection = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
 
-            UnityEngine.Object lastCreatedObject = null;
+            Object lastCreatedObject = null;
 
             foreach (var selected in selection)
             {
                 var selectedPath = AssetDatabase.GetAssetPath(selected);
-
-                //old
-                //var dirPath = Path.GetDirectoryName(selectedPath);
-                //var path = Path.Combine(dirPath, "Editor", $"{selected.name}Editor.cs");
-
-                //if (File.Exists(path))
-                //{
-                //    path = GenerateNotExistingName(path);
-                //}
-
-                //var requiredDirectory = Path.GetDirectoryName(path);
-                //Directory.CreateDirectory(requiredDirectory);
 
                 lastCreatedObject = CreateScriptAsset(selectedPath);
             }
@@ -85,7 +73,7 @@ namespace Bloodstone.MakeEditor
             return false;
         }
 
-        private static UnityEngine.Object CreateScriptAsset(string subjectPath)
+        private static Object CreateScriptAsset(string subjectPath)
         {
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
             if (script == null)
