@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Compilation;
@@ -114,7 +112,6 @@ namespace Bloodstone.MakeEditor
                 File.WriteAllText(outputPath, scriptContent);
                 AssetDatabase.Refresh();
 
-                //DoShitWithAssembly(script, subjectPath, outputPath);
                 CreateAssembly(asmPath, outputPath);
                 AssetDatabase.Refresh();
 
@@ -144,7 +141,7 @@ namespace Bloodstone.MakeEditor
             {
                 var str = File.ReadAllText(outasmPath);
                 AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
-                if (!asmdef.includePlatforms.Contains("Editor"))
+                if (!asmdef.IncludePlatforms.Contains("Editor"))
                 {
                     var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
                     var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
@@ -168,6 +165,8 @@ namespace Bloodstone.MakeEditor
                     var finalCode = string.Join("\n", code.ToArray());
                     File.WriteAllText(editorAsmDef, finalCode);
                 }
+
+                Debug.Log($"{JsonUtility.ToJson(asmdef, true)}");
 
                 // check is asmdef valid
                 // * is editor
@@ -232,20 +231,5 @@ namespace Bloodstone.MakeEditor
 
             return finalCode;
         }
-    }
-
-    public class AssemblyDefinition
-    {
-        public string name;
-        public List<string> references;
-        public List<string> optionalUnityReferences;
-        public List<string> includePlatforms;
-        public List<string> excludePlatforms;
-        public bool allowUnsafeCode;
-        public bool overrideReferences;
-        public List<string> precompiledReferences;
-        public bool autoReferenced;
-        public List<string> defineConstraints;
-        public List<string> versionDefines;
     }
 }
