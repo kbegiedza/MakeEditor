@@ -9,14 +9,6 @@ namespace Bloodstone.MakeEditor
     [InitializeOnLoad]
     public class MakeEditor
     {
-        //private readonly static HashSet<string> _buildInAssemblyDefinitions = new HashSet<string>
-        //{
-        //    "Assembly-CSharp-firstpass",
-        //    "Assembly-CSharp-Editor-firstpass",
-        //    "Assembly-CSharp",
-        //    "Assembly-CSharp-Editor",
-        //};
-
         private static string _editorTemplatePath;
         private static string _asmdefTemplatePath;
 
@@ -85,10 +77,7 @@ namespace Bloodstone.MakeEditor
 
             var scriptContent = PrepareScriptContent(_editorTemplatePath, script);
 
-            //todo: create in parent asmdef directory - similar hierarchy to scripts
-            //todo: sub asm def support
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
-            //if is under asmdef
             if (asmPath != null)
             {
                 var rootPath = Path.GetDirectoryName(asmPath);
