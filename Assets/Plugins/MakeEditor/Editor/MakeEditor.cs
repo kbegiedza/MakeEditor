@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Compilation;
@@ -7,10 +8,9 @@ using UnityEngine;
 namespace Bloodstone.MakeEditor
 {
     [InitializeOnLoad]
-    public class MakeEditor
+    public static class MakeEditor
     {
         private static string _editorTemplatePath;
-        private static string _asmdefTemplatePath;
 
         static MakeEditor()
         {
@@ -20,9 +20,11 @@ namespace Bloodstone.MakeEditor
 
             //todo: add error handling
             _editorTemplatePath = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "editor_template.txt");
-            _asmdefTemplatePath = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "asmdef_template.txt");
         }
 
+        //------------------------------
+        // Unity Menu Item
+        //------------------------------
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
         public static void CreateEditorScript()
         {
@@ -43,6 +45,17 @@ namespace Bloodstone.MakeEditor
             }
         }
 
+        [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
+        public static bool ValidateCreateEditorScript()
+        {
+            return Selection
+                    .GetFiltered<MonoScript>(SelectionMode.Assets)
+                    .Length > 0;
+        }
+        //------------------------------
+        // /Unity Menu Item
+        //------------------------------
+
         private static string GenerateNotExistingName(in string path)
         {
             var directory = Path.GetDirectoryName(path);
@@ -54,16 +67,6 @@ namespace Bloodstone.MakeEditor
             return Path.Combine(directory, newFileName);
         }
 
-        [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
-        public static bool ValidateCreateEditorScript()
-        {
-            if (Selection.objects.Length > 0)
-            {
-                return Selection.objects[0].GetType() == typeof(MonoScript);
-            }
-
-            return false;
-        }
 
         private static Object CreateScriptAsset(string subjectPath)
         {
@@ -118,40 +121,39 @@ namespace Bloodstone.MakeEditor
             {
                 var str = File.ReadAllText(outasmPath);
                 AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
+                var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
+                var requiredGuid = $"GUID:{guidRef}";
+
                 if (!asmdef.IncludePlatforms.Contains("Editor"))
                 {
                     var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
-                    var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
 
                     var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
                     var editorPath = Path.Combine(rootPath, "Editor");
 
-                    var editorAsmDef = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
-                    Debug.Log($"editor asmdef path: {editorAsmDef }");
+                    var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(editorAsmDef));
 
-                    var code = File.ReadAllLines(_asmdefTemplatePath).ToList();
-
-                    for (int i = 0; i < code.Count; ++i)
+                    AssemblyDefinition editorAsmDef = new AssemblyDefinition
                     {
-                        code[i] = code[i].Replace("#ASM_NAME#", refName);
-                        code[i] = code[i].Replace("#REFERENCES#", $"\"GUID:{guidRef}\"");
-                    }
+                        References = new List<string>(1) { requiredGuid },
+                        Name = $"{refName}.Editor"
+                    };
 
-                    var finalCode = string.Join("\n", code.ToArray());
-                    File.WriteAllText(editorAsmDef, finalCode);
+                    Directory.CreateDirectory(Path.GetDirectoryName(editorAsmDefPath));
+                    var serializedAsmDef = JsonUtility.ToJson(editorAsmDef, true);
+                    File.WriteAllText(editorAsmDefPath, serializedAsmDef);
                 }
-
-                Debug.Log($"{JsonUtility.ToJson(asmdef, true)}");
-
-                // check is asmdef valid
-                // * is editor
-                // * is asmPath referenced
+                else if(!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+                {
+                    asmdef.References.Add(requiredGuid);
+                    var serializedAsmDef = JsonUtility.ToJson(asmdef, true);
+                    File.WriteAllText(outasmPath, serializedAsmDef);
+                }
             }
             else
             {
-                // ayyy lmao wtf just happened?
+                throw new System.NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
             }
         }
 

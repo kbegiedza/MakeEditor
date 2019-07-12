@@ -5,16 +5,16 @@ using UnityEngine;
 namespace Bloodstone.MakeEditor
 {
     /// <summary>
-    /// Modification and serialization helper class for Unity's 
+    /// Modification and serialization helper(model) class for Unity's 
     /// <see href="https://docs.unity3d.com/Manual/ScriptCompilationAssemblyDefinitionFiles.html"> asmdef files</see>
     /// </summary>
     [Serializable]
-    public class AssemblyDefinition
+    internal class AssemblyDefinition
     {
         [SerializeField]
         private string name;
         [SerializeField]
-        private bool autoReferenced;
+        private bool autoReferenced = true;
         [SerializeField]
         private bool allowUnsafeCode;
         [SerializeField]
@@ -33,6 +33,18 @@ namespace Bloodstone.MakeEditor
         private List<string> precompiledReferences;
         [SerializeField]
         private List<string> optionalUnityReferences;
+
+        //idea: remove alloc from ctor - this ctor will be used in deserialization
+        public AssemblyDefinition()
+        {
+            References = new List<string>();
+            VersionDefines = new List<string>();
+            IncludePlatforms = new List<string>();
+            ExcludePlatforms = new List<string>();
+            DefineConstraints = new List<string>();
+            PrecompiledReferences = new List<string>();
+            OptionalUnityReferences = new List<string>();
+        }
 
         public string Name
         {
