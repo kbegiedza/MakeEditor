@@ -22,9 +22,6 @@ namespace Bloodstone.MakeEditor
             _editorTemplatePath = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "editor_template.txt");
         }
 
-        //------------------------------
-        // Unity Menu Item
-        //------------------------------
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
         public static void CreateEditorScript()
         {
@@ -52,9 +49,6 @@ namespace Bloodstone.MakeEditor
                     .GetFiltered<MonoScript>(SelectionMode.Assets)
                     .Length > 0;
         }
-        //------------------------------
-        // /Unity Menu Item
-        //------------------------------
 
         private static string GenerateNotExistingName(in string path)
         {
@@ -66,7 +60,6 @@ namespace Bloodstone.MakeEditor
 
             return Path.Combine(directory, newFileName);
         }
-
 
         private static Object CreateScriptAsset(string subjectPath)
         {
@@ -132,7 +125,6 @@ namespace Bloodstone.MakeEditor
                     var editorPath = Path.Combine(rootPath, "Editor");
 
                     var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
-
 
                     AssemblyDefinition editorAsmDef = new AssemblyDefinition
                     {

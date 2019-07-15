@@ -1,6 +1,7 @@
 {
     "name": "Bloodstone.MakeEditor",
     "references": [],
+    "optionalUnityReferences": [],
     "includePlatforms": [
         "Editor"
     ],
