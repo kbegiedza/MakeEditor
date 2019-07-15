@@ -29,16 +29,28 @@ namespace Bloodstone.MakeEditor
 
             Object lastCreatedObject = null;
 
-            foreach (var selected in selection)
+            if(selection.Length > 0)
             {
-                var selectedPath = AssetDatabase.GetAssetPath(selected);
+                var codeTemplate = File.ReadAllLines(_editorTemplatePath).ToList();
 
-                lastCreatedObject = CreateScriptAsset(selectedPath);
-            }
+                foreach (var selected in selection)
+                {
+                    var selectedPath = AssetDatabase.GetAssetPath(selected);
 
-            if (lastCreatedObject != null)
-            {
-                Selection.activeObject = lastCreatedObject;
+                    //deep copy to prevent tempalte modifications
+                    var codeTemp = new List<string>(codeTemplate.Capacity);
+                    foreach(var line in codeTemplate)
+                    {
+                        codeTemp.Add((string)line.Clone());
+                    }
+
+                    lastCreatedObject = CreateScriptAsset(codeTemplate, selectedPath);
+                }
+
+                if (lastCreatedObject != null)
+                {
+                    Selection.activeObject = lastCreatedObject;
+                }
             }
         }
 
@@ -61,7 +73,7 @@ namespace Bloodstone.MakeEditor
             return Path.Combine(directory, newFileName);
         }
 
-        private static Object CreateScriptAsset(string subjectPath)
+        private static Object CreateScriptAsset(List<string> codeGen, string subjectPath)
         {
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
             if (script == null)
@@ -71,7 +83,7 @@ namespace Bloodstone.MakeEditor
                 return null;
             }
 
-            var scriptContent = PrepareScriptContent(_editorTemplatePath, script);
+            var scriptContent = PrepareScriptContent(codeGen, script);
 
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
             if (asmPath != null)
@@ -167,38 +179,37 @@ namespace Bloodstone.MakeEditor
             return outputPath;
         }
 
-        private static string PrepareScriptContent(string template, MonoScript s)
+        private static string PrepareScriptContent(List<string> codeGen, MonoScript s)
         {
-            var code = File.ReadAllLines(template).ToList();
-
+            //bench / try StringBuilder
             var type = s.GetClass();
-            int namespaceIndex = code.FindIndex(str => str.Contains("#NAMESPACE#"));
+            int namespaceIndex = codeGen.FindIndex(str => str.Contains("#NAMESPACE#"));
             if (type.Namespace != null)
             {
-                for (int i = namespaceIndex + 1; i < code.Count; ++i)
+                for (int i = namespaceIndex + 1; i < codeGen.Count; ++i)
                 {
-                    if (code[i].Length > 0)
+                    if (codeGen[i].Length > 0)
                     {
-                        code[i] = code[i].Insert(0, "\t");
+                        codeGen[i] = codeGen[i].Insert(0, "\t");
                     }
                 }
 
-                string usedNamespace = code[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
-                code[namespaceIndex] = "{";
-                code.Insert(namespaceIndex, usedNamespace);
-                code.Add("}");
+                string usedNamespace = codeGen[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
+                codeGen[namespaceIndex] = "{";
+                codeGen.Insert(namespaceIndex, usedNamespace);
+                codeGen.Add("}");
             }
             else
             {
-                code.RemoveAt(namespaceIndex);
+                codeGen.RemoveAt(namespaceIndex);
             }
 
-            for (int i = 0; i < code.Count; ++i)
+            for (int i = 0; i < codeGen.Count; ++i)
             {
-                code[i] = code[i].Replace("#CLASS_NAME#", type.Name);
+                codeGen[i] = codeGen[i].Replace("#CLASS_NAME#", type.Name);
             }
 
-            var finalCode = string.Join("\n", code.ToArray());
+            var finalCode = string.Join("\n", codeGen.ToArray());
 
             return finalCode;
         }
