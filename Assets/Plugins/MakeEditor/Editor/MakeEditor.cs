@@ -11,7 +11,7 @@ namespace Bloodstone.MakeEditor
     public static class MakeEditor
     {
         private static string _editorTemplatePath;
-
+        
         static MakeEditor()
         {
             //todo: add error handling
@@ -25,32 +25,23 @@ namespace Bloodstone.MakeEditor
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
         public static void CreateEditorScript()
         {
-            var selection = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
-
-            Object lastCreatedObject = null;
-
-            if(selection.Length > 0)
+            var selectedScripts = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
+            if(selectedScripts.Length > 0)
             {
-                var codeTemplate = File.ReadAllLines(_editorTemplatePath).ToList();
+                Object lastCreatedObject = null;
+                var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
 
-                foreach (var selected in selection)
+                foreach (var selectedScript in selectedScripts)
                 {
-                    var selectedPath = AssetDatabase.GetAssetPath(selected);
+                    var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
 
-                    //deep copy to prevent tempalte modifications
-                    var codeTemp = new List<string>(codeTemplate.Capacity);
-                    foreach(var line in codeTemplate)
-                    {
-                        codeTemp.Add((string)line.Clone());
-                    }
+                    //deep copy to prevent template modifications
+                    var newScriptCode = editorScriptTemplate.ToList();
 
-                    lastCreatedObject = CreateScriptAsset(codeTemplate, selectedPath);
+                    lastCreatedObject = CreateScriptAsset(newScriptCode, selectedScriptPath);
                 }
 
-                if (lastCreatedObject != null)
-                {
-                    Selection.activeObject = lastCreatedObject;
-                }
+                Selection.activeObject = lastCreatedObject ?? Selection.activeObject;
             }
         }
 
@@ -144,21 +135,27 @@ namespace Bloodstone.MakeEditor
                         Name = $"{refName}.Editor"
                     };
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(editorAsmDefPath));
-                    var serializedAsmDef = JsonUtility.ToJson(editorAsmDef, true);
-                    File.WriteAllText(editorAsmDefPath, serializedAsmDef);
+                    SaveAssemblyDefinition(editorAsmDef, editorAsmDefPath);
                 }
                 else if(!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
                 {
                     asmdef.References.Add(requiredGuid);
-                    var serializedAsmDef = JsonUtility.ToJson(asmdef, true);
-                    File.WriteAllText(outasmPath, serializedAsmDef);
+                    SaveAssemblyDefinition(asmdef, outasmPath);
                 }
             }
             else
             {
                 throw new System.NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
             }
+        }
+
+        private static void SaveAssemblyDefinition(AssemblyDefinition assemblyDefinition, string savePath)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(savePath));
+
+            var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
+
+            File.WriteAllText(savePath, serializedObject);
         }
 
         private static string GetScriptPath(string rootPath, string subjectPath)
