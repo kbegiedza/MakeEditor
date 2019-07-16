@@ -46,6 +46,18 @@ namespace Bloodstone.MakeEditor
             OptionalUnityReferences = new List<string>();
         }
 
+        public AssemblyDefinition(string name)
+        {
+            this.name = name;
+            References = new List<string>();
+            VersionDefines = new List<string>();
+            IncludePlatforms = new List<string>();
+            ExcludePlatforms = new List<string>();
+            DefineConstraints = new List<string>();
+            PrecompiledReferences = new List<string>();
+            OptionalUnityReferences = new List<string>();
+        }
+
         public string Name
         {
             get => name;

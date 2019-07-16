@@ -10,6 +10,7 @@ namespace Bloodstone.MakeEditor
     [InitializeOnLoad]
     public static class MakeEditor
     {
+        private const string _scriptExtension = ".cs";
         private static string _editorTemplatePath;
         
         static MakeEditor()
@@ -22,11 +23,29 @@ namespace Bloodstone.MakeEditor
             _editorTemplatePath = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "editor_template.txt");
         }
 
+        [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
+        public static bool ValidateCreateEditorScriptForSelection()
+        {
+            return Selection
+                    .GetFiltered<MonoScript>(SelectionMode.Assets)
+                    .Length > 0;
+        }
+
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
-        public static void CreateEditorScript()
+        public static void CreateEditorScriptForSelection()
         {
             var selectedScripts = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
-            if(selectedScripts.Length > 0)
+            CreateEditorScript(selectedScripts);
+        }
+
+        public static void CreateEditorScript(params MonoScript[] selectedScripts)
+        {
+            if(selectedScripts == null)
+            {
+                throw new System.ArgumentNullException(nameof(selectedScripts));
+            }
+
+            if (selectedScripts.Length > 0)
             {
                 Object lastCreatedObject = null;
                 var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
@@ -45,26 +64,17 @@ namespace Bloodstone.MakeEditor
             }
         }
 
-        [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
-        public static bool ValidateCreateEditorScript()
-        {
-            return Selection
-                    .GetFiltered<MonoScript>(SelectionMode.Assets)
-                    .Length > 0;
-        }
-
         private static string GenerateNotExistingName(in string path)
         {
             var directory = Path.GetDirectoryName(path);
             var fileName = Path.GetFileNameWithoutExtension(path);
-            var extension = ".cs";
 
-            var newFileName = fileName + extension;
+            var newFileName = fileName + _scriptExtension;
 
             return Path.Combine(directory, newFileName);
         }
 
-        private static Object CreateScriptAsset(List<string> codeGen, string subjectPath)
+        private static Object CreateScriptAsset(List<string> scriptCode, string subjectPath)
         {
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
             if (script == null)
@@ -74,13 +84,13 @@ namespace Bloodstone.MakeEditor
                 return null;
             }
 
-            var scriptContent = PrepareScriptContent(codeGen, script);
+            var scriptContent = PrepareScriptContent(scriptCode, script);
 
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
             if (asmPath != null)
             {
                 var rootPath = Path.GetDirectoryName(asmPath);
-                string outputPath = GetScriptPath(rootPath, subjectPath);
+                string outputPath = PathUtility.GetScriptPath(rootPath, subjectPath);
 
                 var requiredDirectory = Path.GetDirectoryName(outputPath);
                 Directory.CreateDirectory(requiredDirectory);
@@ -96,7 +106,7 @@ namespace Bloodstone.MakeEditor
             else
             {
                 var rootPath = "Assets";
-                string outputPath = GetScriptPath(rootPath, subjectPath);
+                string outputPath = PathUtility.GetScriptPath(rootPath, subjectPath);
 
                 var requiredDirectory = Path.GetDirectoryName(outputPath);
                 Directory.CreateDirectory(requiredDirectory);
@@ -128,11 +138,11 @@ namespace Bloodstone.MakeEditor
                     var editorPath = Path.Combine(rootPath, "Editor");
 
                     var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
+                    var newAssemblyName = $"{refName}.Editor";
 
-                    AssemblyDefinition editorAsmDef = new AssemblyDefinition
+                    AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
                     {
-                        References = new List<string>(1) { requiredGuid },
-                        Name = $"{refName}.Editor"
+                        References = new List<string>(1) { requiredGuid }
                     };
 
                     SaveAssemblyDefinition(editorAsmDef, editorAsmDefPath);
@@ -151,64 +161,66 @@ namespace Bloodstone.MakeEditor
 
         private static void SaveAssemblyDefinition(AssemblyDefinition assemblyDefinition, string savePath)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(savePath));
-
             var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
 
+            Directory.CreateDirectory(Path.GetDirectoryName(savePath));
             File.WriteAllText(savePath, serializedObject);
         }
 
-        private static string GetScriptPath(string rootPath, string subjectPath)
-        {
-            var editorPath = Path.Combine(rootPath, "Editor");
-            var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
-
-            var dirPath = Path.Combine(editorPath, pathMod);
-            Debug.Log($"dir path: {dirPath}");
-            var name = Path.GetFileNameWithoutExtension(subjectPath);
-            var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
-
-            if (File.Exists(outputPath))
-            {
-                outputPath = GenerateNotExistingName(outputPath);
-            }
-
-            return outputPath;
-        }
-
-        private static string PrepareScriptContent(List<string> codeGen, MonoScript s)
+        private static string PrepareScriptContent(List<string> scriptCode, MonoScript s)
         {
             //bench / try StringBuilder
             var type = s.GetClass();
-            int namespaceIndex = codeGen.FindIndex(str => str.Contains("#NAMESPACE#"));
+            int namespaceIndex = scriptCode.FindIndex(str => str.Contains("#NAMESPACE#"));
             if (type.Namespace != null)
             {
-                for (int i = namespaceIndex + 1; i < codeGen.Count; ++i)
+                for (int i = namespaceIndex + 1; i < scriptCode.Count; ++i)
                 {
-                    if (codeGen[i].Length > 0)
+                    if (scriptCode[i].Length > 0)
                     {
-                        codeGen[i] = codeGen[i].Insert(0, "\t");
+                        scriptCode[i] = scriptCode[i].Insert(0, "\t");
                     }
                 }
 
-                string usedNamespace = codeGen[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
-                codeGen[namespaceIndex] = "{";
-                codeGen.Insert(namespaceIndex, usedNamespace);
-                codeGen.Add("}");
+                string usedNamespace = scriptCode[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
+                scriptCode[namespaceIndex] = "{";
+                scriptCode.Insert(namespaceIndex, usedNamespace);
+                scriptCode.Add("}");
             }
             else
             {
-                codeGen.RemoveAt(namespaceIndex);
+                scriptCode.RemoveAt(namespaceIndex);
             }
 
-            for (int i = 0; i < codeGen.Count; ++i)
+            for (int i = 0; i < scriptCode.Count; ++i)
             {
-                codeGen[i] = codeGen[i].Replace("#CLASS_NAME#", type.Name);
+                scriptCode[i] = scriptCode[i].Replace("#CLASS_NAME#", type.Name);
             }
 
-            var finalCode = string.Join("\n", codeGen.ToArray());
+            var finalCode = string.Join("\n", scriptCode.ToArray());
 
             return finalCode;
+        }
+
+        private static class PathUtility
+        {
+            public static string GetScriptPath(string rootPath, string subjectPath)
+            {
+                var editorPath = Path.Combine(rootPath, "Editor");
+                var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
+
+                var dirPath = Path.Combine(editorPath, pathMod);
+
+                var name = Path.GetFileNameWithoutExtension(subjectPath);
+                var outputPath = Path.Combine(dirPath, $"{name}Editor.cs");
+
+                if (File.Exists(outputPath))
+                {
+                    outputPath = GenerateNotExistingName(outputPath);
+                }
+
+                return outputPath;
+            }
         }
     }
 }
