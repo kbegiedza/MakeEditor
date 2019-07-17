@@ -14,7 +14,14 @@ namespace Bloodstone.MakeEditor
         
         static MakeEditor()
         {
-            _editorTemplatePath = PathUtility.FindEditorTemplatePath();
+            try
+            {
+                _editorTemplatePath = PathUtility.FindEditorTemplatePath();
+            }
+            catch(FileNotFoundException e)
+            {
+                Debug.LogError(e.Message);
+            }
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
