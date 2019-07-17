@@ -10,17 +10,11 @@ namespace Bloodstone.MakeEditor
     [InitializeOnLoad]
     public static class MakeEditor
     {
-        private const string _scriptExtension = ".cs";
         private static string _editorTemplatePath;
         
         static MakeEditor()
         {
-            //todo: add error handling
-            var pluginAsmdef = AssetDatabase.FindAssets($"t:asmdef Bloodstone.MakeEditor")[0];
-            var pluginPath = AssetDatabase.GUIDToAssetPath(pluginAsmdef);
-
-            //todo: add error handling
-            _editorTemplatePath = Path.Combine(Path.GetDirectoryName(pluginPath), "Templates", "editor_template.txt");
+            _editorTemplatePath = PathUtility.FindEditorTemplatePath();
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
@@ -62,16 +56,6 @@ namespace Bloodstone.MakeEditor
 
                 Selection.activeObject = lastCreatedObject ?? Selection.activeObject;
             }
-        }
-
-        private static string GenerateNotExistingName(in string path)
-        {
-            var directory = Path.GetDirectoryName(path);
-            var fileName = Path.GetFileNameWithoutExtension(path);
-
-            var newFileName = fileName + _scriptExtension;
-
-            return Path.Combine(directory, newFileName);
         }
 
         private static Object CreateScriptAsset(List<string> scriptCode, string subjectPath)
@@ -204,6 +188,11 @@ namespace Bloodstone.MakeEditor
 
         private static class PathUtility
         {
+            private const string _pluginAssemblyFilter = "t:asmdef Bloodstone.MakeEditor";
+            private const string _templateFolder = "Templates";
+            private const string _scriptExtension = ".cs";
+            private const string _editorTemplateName = "editor_template.txt";
+
             public static string GetScriptPath(string rootPath, string subjectPath)
             {
                 var editorPath = Path.Combine(rootPath, "Editor");
@@ -216,10 +205,32 @@ namespace Bloodstone.MakeEditor
 
                 if (File.Exists(outputPath))
                 {
-                    outputPath = GenerateNotExistingName(outputPath);
+                    outputPath = GenerateNotExistingFilename(outputPath);
                 }
 
                 return outputPath;
+            }
+
+            public static string FindEditorTemplatePath()
+            {
+                var guids = AssetDatabase.FindAssets(_pluginAssemblyFilter);
+                if (guids.Length <= 0)
+                {
+                    throw new FileNotFoundException("Cannot find Bloodstone.MakeEditor assembly definition");
+                }
+
+                var pluginPath = Path.GetDirectoryName(AssetDatabase.GUIDToAssetPath(guids[0]));
+                return Path.Combine(pluginPath, _templateFolder, _editorTemplateName);
+            }
+
+            private static string GenerateNotExistingFilename(in string path)
+            {
+                var directory = Path.GetDirectoryName(path);
+                var fileName = Path.GetFileNameWithoutExtension(path);
+
+                var newFileName = fileName + _scriptExtension;
+
+                return Path.Combine(directory, newFileName);
             }
         }
     }
