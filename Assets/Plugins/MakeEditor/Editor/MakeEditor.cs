@@ -1,24 +1,27 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityObject = UnityEngine.Object;
 
 namespace Bloodstone.MakeEditor
 {
+
     [InitializeOnLoad]
     public static class MakeEditor
     {
         private static string _editorTemplatePath;
-        
+
         static MakeEditor()
         {
             try
             {
                 _editorTemplatePath = PathUtility.FindEditorTemplatePath();
             }
-            catch(FileNotFoundException e)
+            catch (FileNotFoundException e)
             {
                 Debug.LogError(e.Message);
             }
@@ -41,40 +44,39 @@ namespace Bloodstone.MakeEditor
 
         public static void CreateEditorScript(params MonoScript[] selectedScripts)
         {
-            if(selectedScripts == null)
+            if (selectedScripts == null)
             {
-                throw new System.ArgumentNullException(nameof(selectedScripts));
+                throw new ArgumentNullException(nameof(selectedScripts));
             }
 
             if (selectedScripts.Length > 0)
             {
-                Object lastCreatedObject = null;
-                var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
-
-                foreach (var selectedScript in selectedScripts)
+                using (var reloadLock = new ReloadAssembliesLock())
                 {
-                    var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
+                    UnityObject lastCreatedObject = null;
+                    var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
 
-                    //deep copy to prevent template modifications
-                    var newScriptCode = editorScriptTemplate.ToList();
+                    foreach (var selectedScript in selectedScripts)
+                    {
+                        var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
 
-                    lastCreatedObject = CreateScriptAsset(newScriptCode, selectedScriptPath);
+                        //deep copy to prevent template modifications
+                        var newScriptCode = editorScriptTemplate.ToList();
+
+                        lastCreatedObject = CreateScriptAsset(newScriptCode, selectedScriptPath);
+                    }
+
+                    if (lastCreatedObject)
+                    {
+                        Selection.activeObject = lastCreatedObject;
+                    }
                 }
-
-                Selection.activeObject = lastCreatedObject ?? Selection.activeObject;
             }
         }
 
-        private static Object CreateScriptAsset(List<string> scriptCode, string subjectPath)
+        private static UnityObject CreateScriptAsset(List<string> scriptCode, string subjectPath)
         {
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
-            if (script == null)
-            {
-                Debug.LogError("Select valid MonoScript object");
-
-                return null;
-            }
-
             var scriptContent = PrepareScriptContent(scriptCode, script);
 
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
@@ -92,7 +94,7 @@ namespace Bloodstone.MakeEditor
                 CreateAssembly(asmPath, outputPath);
                 AssetDatabase.Refresh();
 
-                return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
+                return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityObject));
             }
             else
             {
@@ -105,7 +107,7 @@ namespace Bloodstone.MakeEditor
                 File.WriteAllText(outputPath, scriptContent);
                 AssetDatabase.Refresh();
 
-                return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityEngine.Object));
+                return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityObject));
             }
         }
 
@@ -138,7 +140,7 @@ namespace Bloodstone.MakeEditor
 
                     SaveAssemblyDefinition(editorAsmDef, editorAsmDefPath);
                 }
-                else if(!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+                else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
                 {
                     asmdef.References.Add(requiredGuid);
                     SaveAssemblyDefinition(asmdef, outasmPath);
@@ -146,7 +148,7 @@ namespace Bloodstone.MakeEditor
             }
             else
             {
-                throw new System.NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
+                throw new NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
             }
         }
 
@@ -195,10 +197,10 @@ namespace Bloodstone.MakeEditor
 
         private static class PathUtility
         {
-            private const string _pluginAssemblyFilter = "t:asmdef Bloodstone.MakeEditor";
-            private const string _templateFolder = "Templates";
             private const string _scriptExtension = ".cs";
+            private const string _templateFolder = "Templates";
             private const string _editorTemplateName = "editor_template.txt";
+            private const string _pluginAssemblyFilter = "t:asmdef Bloodstone.MakeEditor";
 
             public static string GetScriptPath(string rootPath, string subjectPath)
             {
@@ -238,6 +240,19 @@ namespace Bloodstone.MakeEditor
                 var newFileName = fileName + _scriptExtension;
 
                 return Path.Combine(directory, newFileName);
+            }
+        }
+
+        private class ReloadAssembliesLock : IDisposable
+        {
+            public ReloadAssembliesLock()
+            {
+                EditorApplication.LockReloadAssemblies();
+            }
+
+            public void Dispose()
+            {
+                EditorApplication.UnlockReloadAssemblies();
             }
         }
     }
