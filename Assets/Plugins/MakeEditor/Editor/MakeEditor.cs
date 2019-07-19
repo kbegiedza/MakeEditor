@@ -75,7 +75,7 @@ namespace Bloodstone.MakeEditor
         private static UnityObject CreateScriptAsset(List<string> scriptCode, string subjectPath)
         {
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
-            var scriptContent = PrepareScriptContent(scriptCode, script);
+            var scriptContent = CodeGenerator.PrepareScriptContent(scriptCode, script);
 
             var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
             if (asmPath != null)
@@ -87,7 +87,7 @@ namespace Bloodstone.MakeEditor
                 Directory.CreateDirectory(requiredDirectory);
 
                 File.WriteAllText(outputPath, scriptContent);
-                CreateAssembly(asmPath, outputPath);
+                CodeGenerator.CreateAssembly(asmPath, outputPath);
 
                 AssetDatabase.Refresh();
 
@@ -108,88 +108,96 @@ namespace Bloodstone.MakeEditor
             }
         }
 
-        private static void CreateAssembly(string subjectAsmDefPath, string newEditorScriptPath)
+        public class CodeGenerator
         {
-            Debug.Log($"Subject assembly: {subjectAsmDefPath} for created editor script {newEditorScriptPath}");
-
-            var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
-            if (outasmPath != null)
+            public static string PrepareScriptContent(List<string> scriptCode, MonoScript s)
             {
-                var str = File.ReadAllText(outasmPath);
-                AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
-                var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
-                var requiredGuid = $"GUID:{guidRef}";
-
-                if (!asmdef.IncludePlatforms.Contains("Editor"))
+                //bench / try StringBuilder
+                var type = s.GetClass();
+                int namespaceIndex = scriptCode.FindIndex(str => str.Contains("#NAMESPACE#"));
+                if (type.Namespace != null)
                 {
-                    var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
-
-                    var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
-                    var editorPath = Path.Combine(rootPath, "Editor");
-
-                    var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
-                    var newAssemblyName = $"{refName}.Editor";
-
-                    AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
+                    for (int i = namespaceIndex + 1; i < scriptCode.Count; ++i)
                     {
-                        References = new List<string>(1) { requiredGuid }
-                    };
+                        if (scriptCode[i].Length > 0)
+                        {
+                            scriptCode[i] = scriptCode[i].Insert(0, "\t");
+                        }
+                    }
 
-                    SaveAssemblyDefinition(editorAsmDef, editorAsmDefPath);
+                    string usedNamespace = scriptCode[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
+                    scriptCode[namespaceIndex] = "{";
+                    scriptCode.Insert(namespaceIndex, usedNamespace);
+                    scriptCode.Add("}");
                 }
-                else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+                else
                 {
-                    asmdef.References.Add(requiredGuid);
-                    SaveAssemblyDefinition(asmdef, outasmPath);
+                    scriptCode.RemoveAt(namespaceIndex);
                 }
-            }
-            else
-            {
-                throw new NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
-            }
-        }
 
-        private static void SaveAssemblyDefinition(AssemblyDefinition assemblyDefinition, string savePath)
-        {
-            var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(savePath));
-            File.WriteAllText(savePath, serializedObject);
-        }
-
-        private static string PrepareScriptContent(List<string> scriptCode, MonoScript s)
-        {
-            //bench / try StringBuilder
-            var type = s.GetClass();
-            int namespaceIndex = scriptCode.FindIndex(str => str.Contains("#NAMESPACE#"));
-            if (type.Namespace != null)
-            {
-                for (int i = namespaceIndex + 1; i < scriptCode.Count; ++i)
+                for (int i = 0; i < scriptCode.Count; ++i)
                 {
-                    if (scriptCode[i].Length > 0)
+                    scriptCode[i] = scriptCode[i].Replace("#CLASS_NAME#", type.Name);
+                }
+
+                var finalCode = string.Join("\n", scriptCode.ToArray());
+
+                return finalCode;
+            }
+
+            public static void CreateAssembly(string subjectAsmDefPath, string newEditorScriptPath)
+            {
+                Debug.Log($"Subject assembly: {subjectAsmDefPath} for created editor script {newEditorScriptPath}");
+
+                var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
+                if (outasmPath != null)
+                {
+                    var str = File.ReadAllText(outasmPath);
+                    AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
+                    var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
+                    var requiredGuid = $"GUID:{guidRef}";
+
+                    if (!asmdef.IncludePlatforms.Contains("Editor"))
                     {
-                        scriptCode[i] = scriptCode[i].Insert(0, "\t");
+                        var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
+
+                        var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
+                        var editorPath = Path.Combine(rootPath, "Editor");
+
+                        var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
+                        var newAssemblyName = $"{refName}.Editor";
+
+                        AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
+                        {
+                            References = new List<string>(1) { requiredGuid }
+                        };
+
+                        FileWriter.WriteAssemblyDefinition(editorAsmDef, editorAsmDefPath);
+                    }
+                    else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+                    {
+                        asmdef.References.Add(requiredGuid);
+                        FileWriter.WriteAssemblyDefinition(asmdef, outasmPath);
                     }
                 }
-
-                string usedNamespace = scriptCode[namespaceIndex].Replace("#NAMESPACE#", $"namespace {type.Namespace}");
-                scriptCode[namespaceIndex] = "{";
-                scriptCode.Insert(namespaceIndex, usedNamespace);
-                scriptCode.Add("}");
+                else
+                {
+                    throw new NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
+                }
             }
-            else
+
+
+        }
+
+        internal class FileWriter
+        {
+            public static void WriteAssemblyDefinition(AssemblyDefinition assemblyDefinition, string savePath)
             {
-                scriptCode.RemoveAt(namespaceIndex);
+                var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(savePath));
+                File.WriteAllText(savePath, serializedObject);
             }
-
-            for (int i = 0; i < scriptCode.Count; ++i)
-            {
-                scriptCode[i] = scriptCode[i].Replace("#CLASS_NAME#", type.Name);
-            }
-
-            var finalCode = string.Join("\n", scriptCode.ToArray());
-
-            return finalCode;
         }
 
         private class ReloadAssembliesLock : IDisposable
