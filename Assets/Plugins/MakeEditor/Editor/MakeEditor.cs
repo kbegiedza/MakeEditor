@@ -48,26 +48,28 @@ namespace Bloodstone.MakeEditor
                 throw new ArgumentNullException(nameof(selectedScripts));
             }
 
-            if (selectedScripts.Length > 0)
+            if (selectedScripts.Length <= 0)
             {
-                using (new ReloadAssembliesLock())
+                return;
+            }
+
+            using (new ReloadAssembliesLock())
+            {
+                UnityObject lastCreatedObject = null;
+                var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
+
+                foreach (var selectedScript in selectedScripts)
                 {
-                    UnityObject lastCreatedObject = null;
-                    var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
+                    //deep copy to prevent template modifications
+                    var newScriptCode = editorScriptTemplate.ToList();
+                    var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
 
-                    foreach (var selectedScript in selectedScripts)
-                    {
-                        //deep copy to prevent template modifications
-                        var newScriptCode = editorScriptTemplate.ToList();
-                        var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
+                    lastCreatedObject = CreateScriptAsset(newScriptCode, selectedScriptPath);
+                }
 
-                        lastCreatedObject = CreateScriptAsset(newScriptCode, selectedScriptPath);
-                    }
-
-                    if (lastCreatedObject)
-                    {
-                        Selection.activeObject = lastCreatedObject;
-                    }
+                if (lastCreatedObject)
+                {
+                    Selection.activeObject = lastCreatedObject;
                 }
             }
         }
@@ -150,43 +152,39 @@ namespace Bloodstone.MakeEditor
                 Debug.Log($"Subject assembly: {subjectAsmDefPath} for created editor script {newEditorScriptPath}");
 
                 var outasmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
-                if (outasmPath != null)
-                {
-                    var str = File.ReadAllText(outasmPath);
-                    AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
-                    var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
-                    var requiredGuid = $"GUID:{guidRef}";
-
-                    if (!asmdef.IncludePlatforms.Contains("Editor"))
-                    {
-                        var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
-
-                        var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
-                        var editorPath = Path.Combine(rootPath, "Editor");
-
-                        var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
-                        var newAssemblyName = $"{refName}.Editor";
-
-                        AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
-                        {
-                            References = new List<string>(1) { requiredGuid }
-                        };
-
-                        FileWriter.WriteAssemblyDefinition(editorAsmDef, editorAsmDefPath);
-                    }
-                    else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
-                    {
-                        asmdef.References.Add(requiredGuid);
-                        FileWriter.WriteAssemblyDefinition(asmdef, outasmPath);
-                    }
-                }
-                else
+                if (outasmPath == null)
                 {
                     throw new NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
                 }
+
+                var str = File.ReadAllText(outasmPath);
+                AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
+                var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
+                var requiredGuid = $"GUID:{guidRef}";
+
+                if (!asmdef.IncludePlatforms.Contains("Editor"))
+                {
+                    var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
+
+                    var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
+                    var editorPath = Path.Combine(rootPath, "Editor");
+
+                    var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.Editor.asmdef");
+                    var newAssemblyName = $"{refName}.Editor";
+
+                    AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
+                    {
+                        References = new List<string>(1) { requiredGuid }
+                    };
+
+                    FileWriter.WriteAssemblyDefinition(editorAsmDef, editorAsmDefPath);
+                }
+                else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+                {
+                    asmdef.References.Add(requiredGuid);
+                    FileWriter.WriteAssemblyDefinition(asmdef, outasmPath);
+                }
             }
-
-
         }
 
         internal class FileWriter
