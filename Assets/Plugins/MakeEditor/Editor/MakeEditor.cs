@@ -53,8 +53,8 @@ namespace Bloodstone.MakeEditor
 
             using (new ReloadAssembliesLock())
             {
-                UnityObject lastCreatedObject = null;
-                var editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
+                string[] editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
+                string lastCreatedAssetPath = null;
 
                 foreach (var selectedScript in selectedScripts)
                 {
@@ -62,15 +62,20 @@ namespace Bloodstone.MakeEditor
                     var newScriptCode = editorScriptTemplate.ToList();
                     var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
 
-                    lastCreatedObject = CodeGenerator.CreateEditorScriptAsset(newScriptCode, selectedScriptPath);
+                    lastCreatedAssetPath = CodeGenerator.CreateEditorScriptAsset(newScriptCode, selectedScriptPath);
                 }
 
                 AssetDatabase.Refresh();
+                SelectLastCreatedAsset(lastCreatedAssetPath);
+            }
+        }
 
-                if (lastCreatedObject)
-                {
-                    Selection.activeObject = lastCreatedObject;
-                }
+        private static void SelectLastCreatedAsset(string assetPath)
+        {
+            var lastCreatedObject = AssetDatabase.LoadAssetAtPath<UnityObject>(assetPath);
+            if (lastCreatedObject)
+            {
+                Selection.activeObject = lastCreatedObject;
             }
         }
     }

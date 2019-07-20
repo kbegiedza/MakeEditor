@@ -9,7 +9,7 @@ namespace Bloodstone.MakeEditor
     /// <see href="https://docs.unity3d.com/Manual/ScriptCompilationAssemblyDefinitionFiles.html"> asmdef files</see>
     /// </summary>
     [Serializable]
-    internal class AssemblyDefinition
+    public class AssemblyDefinition
     {
         [SerializeField]
         private string name;

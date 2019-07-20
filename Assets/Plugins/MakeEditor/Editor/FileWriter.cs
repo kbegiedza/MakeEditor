@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Bloodstone.MakeEditor
 {
-    internal static class FileWriter
+    public static class FileWriter
     {
         public static void WriteAssemblyDefinition(string path, AssemblyDefinition assemblyDefinition)
         {
@@ -12,16 +12,16 @@ namespace Bloodstone.MakeEditor
             WriteText(path, serializedObject);
         }
 
-        public static void WriteText(string path, string text)
+        public static void WriteText(string path, string text, bool allowOverride = false)
         {
-            PrepareDirectory(path);
+            PrepareFileDirectory(path);
 
             File.WriteAllText(path, text);
         }
 
-        private static void PrepareDirectory(string savePath)
+        public static void PrepareFileDirectory(string fileDirectory)
         {
-            var requiredDirectory = Path.GetDirectoryName(savePath);
+            var requiredDirectory = Path.GetDirectoryName(fileDirectory);
 
             if (!Directory.Exists(requiredDirectory))
             {
