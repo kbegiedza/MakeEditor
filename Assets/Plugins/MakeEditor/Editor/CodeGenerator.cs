@@ -93,7 +93,8 @@ namespace Bloodstone.MakeEditor
 
                 AssemblyDefinition editorAsmDef = new AssemblyDefinition(newAssemblyName)
                 {
-                    References = new List<string>(1) { requiredGuid }
+                    References = new List<string> { requiredGuid },
+                    IncludePlatforms = new List<string> { "Editor" }
                 };
 
                 FileWriter.WriteAssemblyDefinition(editorAsmDefPath, editorAsmDef);
