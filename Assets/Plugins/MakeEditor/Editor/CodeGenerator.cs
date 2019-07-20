@@ -10,12 +10,6 @@ namespace Bloodstone.MakeEditor
 {
     public static class EditorScriptGenerator
     {
-        private static class TemplateIdentifiers
-        {
-            public const string Namespace = "#NAMESPACE#";
-            public const string ClassName = "#CLASS_NAME#";
-        }
-
         private const string _spaceSign = " ";
         private const string _tabulatorSign = "\t";
         private const string _bracketOpenSign = "{";
@@ -84,6 +78,12 @@ namespace Bloodstone.MakeEditor
                 scriptCode.Insert(namespaceIndex, namespaceCodeLine);
                 scriptCode.Add(_bracketCloseSign);
             }
+        }
+
+        private static class TemplateIdentifiers
+        {
+            public const string Namespace = "#NAMESPACE#";
+            public const string ClassName = "#CLASS_NAME#";
         }
     }
 }
