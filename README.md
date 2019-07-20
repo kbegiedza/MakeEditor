@@ -9,6 +9,8 @@ assembly definition files (if required).
 2. Open context menu (right mouse button)
 3. Select `Create > C# Editor Script`
 
+You can easily modify editor template by editing `editor_template` under `Plugins\MakeEditor\Editor\Templates`
+
 Source available via GitHub: [MakeEditor on GitHub](https://github.com/Ursanon/MakeEditor)
 
 ---
