@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using UnityEditor;
 using UnityEditor.Compilation;
 
@@ -20,7 +21,7 @@ namespace Bloodstone.MakeEditor
             var rootPath = Path.GetDirectoryName(relatedAssemblyPath);
             var editorPath = Path.Combine(rootPath, PathUtility.EditorSuffix);
 
-            var filenameWithExtension = AddEditorSuffix(relatedAssemblyName, Extensions.AssemblyDefinition);
+            var filenameWithExtension = BuildFilename(relatedAssemblyName, Extensions.AssemblyDefinition);
             return Path.Combine(editorPath, filenameWithExtension);
         }
 
@@ -37,15 +38,22 @@ namespace Bloodstone.MakeEditor
             var dirPath = Path.Combine(editorPath, scriptRelativePath);
 
             var name = Path.GetFileNameWithoutExtension(scriptPath);
-            var filenameWithExtension = AddEditorSuffix(name, Extensions.CSharpScript);
+            var filenameWithExtension = BuildFilename(name, Extensions.CSharpScript);
             var outputPath = Path.Combine(dirPath, filenameWithExtension);
 
             return outputPath;
         }
 
-        public static string AddEditorSuffix(string filename, string extension = null)
+        public static string BuildFilename(string filename, string extension)
         {
-            return string.Join(".", filename, EditorSuffix, extension);
+            char separator = '.';
+
+            StringBuilder builder = new StringBuilder(filename);
+            builder.Append(EditorSuffix);
+            builder.Append(separator);
+            builder.Append(extension);
+
+            return builder.ToString();
         }
 
         public static string FindEditorTemplatePath()
