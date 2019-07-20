@@ -4,11 +4,32 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityObject = UnityEngine.Object;
 
 namespace Bloodstone.MakeEditor
 {
-    public class CodeGenerator
+    public static class CodeGenerator
     {
+        public static UnityObject CreateEditorScriptAsset(List<string> scriptCode, string subjectPath)
+        {
+            var script = AssetDatabase.LoadAssetAtPath<MonoScript>(subjectPath);
+            var scriptContent = PrepareScriptContent(scriptCode, script);
+
+            var asmPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(subjectPath);
+            bool isNewAssemblyRequired = asmPath != null;
+
+            var rootPath = isNewAssemblyRequired ? Path.GetDirectoryName(asmPath) : "Assets";
+            var outputPath = PathUtility.GetScriptPath(rootPath, subjectPath);
+            FileWriter.WriteText(outputPath, scriptContent);
+
+            if (isNewAssemblyRequired)
+            {
+                CreateEditorAssembly(asmPath, outputPath);
+            }
+
+            return AssetDatabase.LoadAssetAtPath(outputPath, typeof(UnityObject));
+        }
+
         public static string PrepareScriptContent(List<string> scriptCode, MonoScript s)
         {
             //bench / try StringBuilder
@@ -44,7 +65,7 @@ namespace Bloodstone.MakeEditor
             return finalCode;
         }
 
-        public static void CreateAssembly(string subjectAsmDefPath, string newEditorScriptPath)
+        public static void CreateEditorAssembly(string subjectAsmDefPath, string newEditorScriptPath)
         {
             Debug.Log($"Subject assembly: {subjectAsmDefPath} for created editor script {newEditorScriptPath}");
 
@@ -56,8 +77,9 @@ namespace Bloodstone.MakeEditor
 
             var str = File.ReadAllText(outasmPath);
             AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(str);
-            var guidRef = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
-            var requiredGuid = $"GUID:{guidRef}";
+            var guidRef = AssetDatabase.AssetPathToGUID(outasmPath);
+            var guidReq = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
+            var requiredGuid = $"GUID:{guidReq}";
 
             if (!asmdef.IncludePlatforms.Contains("Editor"))
             {
@@ -76,7 +98,7 @@ namespace Bloodstone.MakeEditor
 
                 FileWriter.WriteAssemblyDefinition(editorAsmDefPath, editorAsmDef);
             }
-            else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name))
+            else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name) && guidReq != guidRef)
             {
                 asmdef.References.Add(requiredGuid);
                 FileWriter.WriteAssemblyDefinition(outasmPath, asmdef);

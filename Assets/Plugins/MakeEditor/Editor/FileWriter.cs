@@ -5,18 +5,18 @@ namespace Bloodstone.MakeEditor
 {
     internal static class FileWriter
     {
-        public static void WriteAssemblyDefinition(string savePath, AssemblyDefinition assemblyDefinition)
+        public static void WriteAssemblyDefinition(string path, AssemblyDefinition assemblyDefinition)
         {
             var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
 
-            WriteText(savePath, serializedObject);
+            WriteText(path, serializedObject);
         }
 
-        public static void WriteText(string savePath, string text)
+        public static void WriteText(string path, string text)
         {
-            PrepareDirectory(savePath);
+            PrepareDirectory(path);
 
-            File.WriteAllText(savePath, text);
+            File.WriteAllText(path, text);
         }
 
         private static void PrepareDirectory(string savePath)

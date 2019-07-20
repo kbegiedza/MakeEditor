@@ -3,7 +3,7 @@ using UnityEditor;
 
 namespace Bloodstone.MakeEditor
 {
-    public static class PathUtility
+    internal static class PathUtility
     {
         private const string _scriptExtension = ".cs";
         private const string _templateFolder = "Templates";
@@ -14,7 +14,6 @@ namespace Bloodstone.MakeEditor
         {
             var editorPath = Path.Combine(rootPath, "Editor");
             var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
-
             var dirPath = Path.Combine(editorPath, pathMod);
 
             var name = Path.GetFileNameWithoutExtension(subjectPath);
