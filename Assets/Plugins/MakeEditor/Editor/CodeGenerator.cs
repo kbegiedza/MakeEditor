@@ -8,7 +8,7 @@ using UnityObject = UnityEngine.Object;
 
 namespace Bloodstone.MakeEditor
 {
-    public static class CodeGenerator
+    public static class EditorScriptGenerator
     {
         private static class TemplateIdentifiers
         {
@@ -22,14 +22,13 @@ namespace Bloodstone.MakeEditor
         private const string _bracketCloseSign = "}";
         private const string _namespaceKeyword = "namespace";
 
-        public static void CreateEditorScriptAsset(List<string> scriptCode, string selectedScriptPath, string scriptSavePath)
+        public static void CreateEditorScript(List<string> scriptCode, string newScriptPath, MonoScript relatedScript)
         {
-            var script = AssetDatabase.LoadAssetAtPath<MonoScript>(selectedScriptPath);
-            var scriptContent = PrepareScriptContent(scriptCode, script);
-            FileWriter.WriteText(scriptSavePath, scriptContent);
+            var scriptContent = PrepareContent(scriptCode, relatedScript);
+            FileWriter.WriteText(newScriptPath, scriptContent);
         }
 
-        public static string PrepareScriptContent(List<string> scriptCode, MonoScript script)
+        public static string PrepareContent(List<string> scriptCode, MonoScript script)
         {
             var type = script.GetClass();
 

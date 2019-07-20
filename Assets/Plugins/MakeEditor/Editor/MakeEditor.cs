@@ -64,30 +64,27 @@ namespace Bloodstone.MakeEditor
 
                 foreach (var selectedScript in selectedScripts)
                 {
-                    //deep copy to prevent template modifications
-                    var newScriptCode = editorScriptTemplate.ToList();
                     var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
+                    var selectedScriptAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(selectedScriptPath);
+                    bool isEditorAssemblyRequired = selectedScriptAssemblyPath != null;
 
-                    var subjectAssemblyDefinitionPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(selectedScriptPath);
-                    bool isEditorAssemblyRequired = subjectAssemblyDefinitionPath != null;
-
-                    var rootPath = isEditorAssemblyRequired 
-                        ? Path.GetDirectoryName(subjectAssemblyDefinitionPath)
-                        : PathUtility.AssetsFolder;
-                    var scriptSavePath = PathUtility.GetEditorScriptPath(rootPath, selectedScriptPath);
-
+                    var scriptSavePath = PathUtility.GetEditorScriptPath(selectedScriptAssemblyPath, selectedScriptPath);
                     if (!IsOverrideAllowed(scriptSavePath))
                     {
                         continue;
                     }
 
-                    CodeGenerator.CreateEditorScriptAsset(newScriptCode, selectedScriptPath, scriptSavePath);
-                    lastCreatedScriptPath = scriptSavePath;
+                    //deep copy to prevent template modifications
+                    var editorScriptCode = editorScriptTemplate.ToList();
+                    var relatedScript = AssetDatabase.LoadAssetAtPath<MonoScript>(selectedScriptPath);
+                    EditorScriptGenerator.CreateEditorScript(editorScriptCode, scriptSavePath, relatedScript);
 
                     if (isEditorAssemblyRequired)
                     {
-                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(subjectAssemblyDefinitionPath, scriptSavePath);
+                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(selectedScriptAssemblyPath, scriptSavePath);
                     }
+
+                    lastCreatedScriptPath = scriptSavePath;
                 }
 
                 AssetDatabase.Refresh();

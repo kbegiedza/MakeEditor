@@ -13,9 +13,12 @@ namespace Bloodstone.MakeEditor
         private const string _editorTemplateName = "editor_template.txt";
         private const string _pluginAssemblyFilter = "t:asmdef Bloodstone.MakeEditor";
 
-
-        public static string GetEditorScriptPath(string rootPath, string subjectPath)
+        public static string GetEditorScriptPath(string assemblyPath, string subjectPath)
         {
+            var rootPath = assemblyPath != null
+                ? Path.GetDirectoryName(selectedScriptAssemblyPath)
+                : PathUtility.AssetsFolder;
+
             var editorPath = Path.Combine(rootPath, EditorSuffix);
             var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
             var dirPath = Path.Combine(editorPath, pathMod);
