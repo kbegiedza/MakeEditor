@@ -10,38 +10,36 @@ namespace Bloodstone.MakeEditor
 {
     public static class AssemblyDefinitionGenerator
     {
-        public static void UpdateOrCreateAssemblyDefinitionAsset(string subjectAsmDefPath, string newEditorScriptPath)
+        public static void UpdateOrCreateAssemblyDefinitionAsset(string relatedAssemblyPath, string newEditorScriptPath)
         {
-            var existingAssemblyDefinition = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
-            if (existingAssemblyDefinition == null)
+            var existingAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
+            if (existingAssemblyPath == null)
             {
                 throw new NotSupportedException($"Cannot create editor assembly without runtime assembly to reference");
             }
 
-            var json = File.ReadAllText(existingAssemblyDefinition);
-            AssemblyDefinition asmdef = JsonUtility.FromJson<AssemblyDefinition>(json);
+            var serializedEditorAssembly = File.ReadAllText(existingAssemblyPath);
+            AssemblyDefinition existingAssembly = JsonUtility.FromJson<AssemblyDefinition>(serializedEditorAssembly);
 
-            var guidRef = AssetDatabase.AssetPathToGUID(existingAssemblyDefinition);
-            var guidReq = AssetDatabase.AssetPathToGUID(subjectAsmDefPath);
-            var requiredGuid = GetAssemblyGuidReference(guidReq);
+            var editorAssemblyGuid = AssetDatabase.AssetPathToGUID(existingAssemblyPath);
+            var relatedAssemblyGuid = AssetDatabase.AssetPathToGUID(relatedAssemblyPath);
+            var relatedAssemblyReference = GetAssemblyGuidReference(relatedAssemblyGuid);
 
-            if (!asmdef.IncludePlatforms.Contains(PathUtility.EditorSuffix))
+            bool isExisingRuntimeAssembly = !existingAssembly.IncludePlatforms.Contains(PathUtility.EditorSuffix);
+            if (isExisingRuntimeAssembly)
             {
-                var refName = Path.GetFileNameWithoutExtension(subjectAsmDefPath);
+                var editorAssemblyPath = PathUtility.GetEditorAssemblyDefinitionPath(relatedAssemblyPath);
+                var newAssemblyName = Path.GetFileNameWithoutExtension(editorAssemblyPath);
 
-                var rootPath = Path.GetDirectoryName(subjectAsmDefPath);
-                var editorPath = Path.Combine(rootPath, PathUtility.EditorSuffix);
-
-                var editorAsmDefPath = Path.Combine(editorPath, $"{refName}.{PathUtility.EditorSuffix}.{PathUtility.Extensions.AssemblyDefinition}");
-                var newAssemblyName = $"{refName}.{PathUtility.EditorSuffix}";
-
-                AssemblyDefinition editorAsmDef = CreateEditorAssemblyDefinition(newAssemblyName, requiredGuid);
-                FileWriter.WriteAssemblyDefinition(editorAsmDefPath, editorAsmDef);
+                AssemblyDefinition editorAssembly = CreateEditorAssemblyDefinition(newAssemblyName, relatedAssemblyReference);
+                FileWriter.WriteAssemblyDefinition(editorAssemblyPath, editorAssembly);
             }
-            else if (!asmdef.References.Contains(requiredGuid) && !asmdef.References.Contains(asmdef.Name) && guidReq != guidRef)
+            else if (relatedAssemblyGuid != editorAssemblyGuid 
+                    && !existingAssembly.References.Contains(relatedAssemblyReference) 
+                    && !existingAssembly.References.Contains(existingAssembly.Name))
             {
-                asmdef.References.Add(requiredGuid);
-                FileWriter.WriteAssemblyDefinition(existingAssemblyDefinition, asmdef);
+                existingAssembly.References.Add(relatedAssemblyReference);
+                FileWriter.WriteAssemblyDefinition(existingAssemblyPath, existingAssembly);
             }
         }
 
