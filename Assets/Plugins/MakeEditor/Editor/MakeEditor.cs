@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Compilation;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
 
@@ -10,10 +11,15 @@ namespace Bloodstone.MakeEditor
     [InitializeOnLoad]
     public static class MakeEditor
     {
-        private static string _editorTemplatePath;
+        private const string _overrideMessageFormat = "Are you sure you want to override {0} ?";
+
+        private static readonly EditorDialog _overrideDialog;
+        private static readonly string _editorTemplatePath;
 
         static MakeEditor()
         {
+            _overrideDialog = new EditorDialog("Override script?", "Yes", "No");
+
             try
             {
                 _editorTemplatePath = PathUtility.FindEditorTemplatePath();
@@ -54,7 +60,7 @@ namespace Bloodstone.MakeEditor
             using (new ReloadAssembliesLock())
             {
                 string[] editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
-                string lastCreatedAssetPath = null;
+                string lastCreatedScriptPath = null;
 
                 foreach (var selectedScript in selectedScripts)
                 {
@@ -62,11 +68,30 @@ namespace Bloodstone.MakeEditor
                     var newScriptCode = editorScriptTemplate.ToList();
                     var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
 
-                    lastCreatedAssetPath = CodeGenerator.CreateEditorScriptAsset(newScriptCode, selectedScriptPath);
+                    var subjectAssemblyDefinitionPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(selectedScriptPath);
+                    bool isEditorAssemblyRequired = subjectAssemblyDefinitionPath != null;
+
+                    var rootPath = isEditorAssemblyRequired 
+                        ? Path.GetDirectoryName(subjectAssemblyDefinitionPath)
+                        : PathUtility.AssetsFolder;
+                    var scriptSavePath = PathUtility.GetEditorScriptPath(rootPath, selectedScriptPath);
+
+                    if (!IsOverrideAllowed(scriptSavePath))
+                    {
+                        continue;
+                    }
+
+                    CodeGenerator.CreateEditorScriptAsset(newScriptCode, selectedScriptPath, scriptSavePath);
+                    lastCreatedScriptPath = scriptSavePath;
+
+                    if (isEditorAssemblyRequired)
+                    {
+                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(subjectAssemblyDefinitionPath, scriptSavePath);
+                    }
                 }
 
                 AssetDatabase.Refresh();
-                SelectLastCreatedAsset(lastCreatedAssetPath);
+                SelectLastCreatedAsset(lastCreatedScriptPath);
             }
         }
 
@@ -77,6 +102,19 @@ namespace Bloodstone.MakeEditor
             {
                 Selection.activeObject = lastCreatedObject;
             }
+        }
+
+        private static bool IsOverrideAllowed(string scriptPath)
+        {
+            if (!File.Exists(scriptPath))
+            {
+                return true;
+            }
+
+            var message = string.Format(_overrideMessageFormat, scriptPath);
+            var selectedOption = _overrideDialog.Show(message);
+
+            return selectedOption == EditorDialog.Option.Accepted;
         }
     }
 }

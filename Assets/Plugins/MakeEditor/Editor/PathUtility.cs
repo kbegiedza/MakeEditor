@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using UnityEditor;
+using UnityEditor.Compilation;
 
 namespace Bloodstone.MakeEditor
 {
@@ -12,7 +13,8 @@ namespace Bloodstone.MakeEditor
         private const string _editorTemplateName = "editor_template.txt";
         private const string _pluginAssemblyFilter = "t:asmdef Bloodstone.MakeEditor";
 
-        public static string GetScriptPath(string rootPath, string subjectPath)
+
+        public static string GetEditorScriptPath(string rootPath, string subjectPath)
         {
             var editorPath = Path.Combine(rootPath, EditorSuffix);
             var pathMod = Path.GetDirectoryName(subjectPath.Substring(rootPath.Length + 1)); //+1 to remove '/'
