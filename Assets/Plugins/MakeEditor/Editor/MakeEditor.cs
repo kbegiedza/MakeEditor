@@ -13,13 +13,11 @@ namespace Bloodstone.MakeEditor
     {
         private const string _overrideMessageFormat = "Are you sure you want to override {0} ?";
 
-        private static readonly EditorDialog _overrideDialog;
+        private static readonly EditorDialog _overrideDialog = new EditorDialog("Override script?", "Yes", "No");
         private static readonly string _editorTemplatePath;
 
         static MakeEditor()
         {
-            _overrideDialog = new EditorDialog("Override script?", "Yes", "No");
-
             try
             {
                 _editorTemplatePath = PathUtility.FindEditorTemplatePath();
@@ -31,7 +29,7 @@ namespace Bloodstone.MakeEditor
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
-        public static bool ValidateCreateEditorScriptForSelection()
+        public static bool ValidateCreateEditorScriptsForSelection()
         {
             return !EditorApplication.isCompiling 
                     && Selection.GetFiltered<MonoScript>(SelectionMode.Assets)
@@ -39,13 +37,13 @@ namespace Bloodstone.MakeEditor
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
-        public static void CreateEditorScriptForSelection()
+        public static void CreateEditorScriptsForSelection()
         {
             var selectedScripts = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
-            CreateEditorScript(selectedScripts);
+            CreateEditorScripts(selectedScripts);
         }
 
-        public static void CreateEditorScript(params MonoScript[] selectedScripts)
+        public static void CreateEditorScripts(params MonoScript[] selectedScripts)
         {
             if (selectedScripts == null)
             {
@@ -62,26 +60,26 @@ namespace Bloodstone.MakeEditor
                 string[] editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
                 string lastCreatedScriptPath = null;
 
-                foreach (var selectedScript in selectedScripts)
+                foreach (var script in selectedScripts)
                 {
-                    var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
-                    var selectedScriptAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(selectedScriptPath);
-                    bool isEditorAssemblyRequired = selectedScriptAssemblyPath != null;
+                    var scriptPath = AssetDatabase.GetAssetPath(script);
+                    var assemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(scriptPath);
 
-                    var scriptSavePath = PathUtility.GetEditorScriptPath(selectedScriptAssemblyPath, selectedScriptPath);
-                    if (!IsOverrideAllowed(scriptSavePath))
+                    var scriptSavePath = PathUtility.GetEditorScriptPath(assemblyPath, scriptPath);
+                    if (!ShowDialogIsOverrideAllowed(scriptSavePath))
                     {
                         continue;
                     }
 
                     //deep copy to prevent template modifications
                     var editorScriptCode = editorScriptTemplate.ToList();
-                    var relatedScript = AssetDatabase.LoadAssetAtPath<MonoScript>(selectedScriptPath);
+                    var relatedScript = AssetDatabase.LoadAssetAtPath<MonoScript>(scriptPath);
                     EditorScriptGenerator.CreateEditorScript(editorScriptCode, scriptSavePath, relatedScript);
 
+                    bool isEditorAssemblyRequired = assemblyPath != null;
                     if (isEditorAssemblyRequired)
                     {
-                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(selectedScriptAssemblyPath, scriptSavePath);
+                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(assemblyPath, scriptSavePath);
                     }
 
                     lastCreatedScriptPath = scriptSavePath;
@@ -101,7 +99,7 @@ namespace Bloodstone.MakeEditor
             }
         }
 
-        private static bool IsOverrideAllowed(string scriptPath)
+        private static bool ShowDialogIsOverrideAllowed(string scriptPath)
         {
             if (!File.Exists(scriptPath))
             {
