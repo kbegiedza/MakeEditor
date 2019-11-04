@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEditor;
-using UnityEditor.Compilation;
-using UnityEngine;
-using UnityObject = UnityEngine.Object;
 
 namespace Bloodstone.MakeEditor
 {
@@ -16,13 +12,17 @@ namespace Bloodstone.MakeEditor
         private const string _bracketCloseSign = "}";
         private const string _namespaceKeyword = "namespace";
 
-        public static void CreateEditorScript(List<string> scriptCode, string newScriptPath, MonoScript relatedScript)
+        public static void CreateEditorScript(List<string> scriptCode, string newScriptPath, MonoScript sourceScript)
         {
-            var scriptContent = PrepareContent(scriptCode, relatedScript);
+            scriptCode.ThrowIfNull(nameof(scriptCode));
+            newScriptPath.ThrowIfNull(nameof(newScriptPath));
+            sourceScript.ThrowIfNull(nameof(sourceScript));
+
+            var scriptContent = PrepareContent(scriptCode, sourceScript);
             FileWriter.WriteText(newScriptPath, scriptContent);
         }
 
-        public static string PrepareContent(List<string> scriptCode, MonoScript script)
+        private static string PrepareContent(List<string> scriptCode, MonoScript script)
         {
             var type = script.GetClass();
 
@@ -32,7 +32,7 @@ namespace Bloodstone.MakeEditor
             return string.Join(Environment.NewLine, scriptCode.ToArray());
         }
 
-        public static void AddIndentation(List<string> scriptCode, int startIndex, int endIndex)
+        private static void AddIndentation(List<string> scriptCode, int startIndex, int endIndex)
         {
             for (int i = startIndex; i <= endIndex; ++i)
             {

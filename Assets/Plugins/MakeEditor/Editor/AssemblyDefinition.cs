@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Bloodstone.MakeEditor
 {
@@ -11,107 +10,35 @@ namespace Bloodstone.MakeEditor
     [Serializable]
     public class AssemblyDefinition
     {
-        [SerializeField]
-        private string name;
-        [SerializeField]
-        private bool autoReferenced = true;
-        [SerializeField]
-        private bool allowUnsafeCode;
-        [SerializeField]
-        private bool overrideReferences;
-        [SerializeField]
-        private List<string> references;
-        [SerializeField]
-        private List<string> versionDefines;
-        [SerializeField]
-        private List<string> includePlatforms;
-        [SerializeField]
-        private List<string> excludePlatforms;
-        [SerializeField]
-        private List<string> defineConstraints;
-        [SerializeField]
-        private List<string> precompiledReferences;
-        [SerializeField]
-        private List<string> optionalUnityReferences;
+        public string name;
+        public bool autoReferenced = true;
+        public bool allowUnsafeCode;
+        public bool overrideReferences;
+        public List<string> references;
+        public List<string> versionDefines;
+        public List<string> includePlatforms;
+        public List<string> excludePlatforms;
+        public List<string> defineConstraints;
+        public List<string> precompiledReferences;
+        public List<string> optionalUnityReferences;
 
-        //idea: remove alloc from ctor - this ctor will be used in deserialization
         public AssemblyDefinition()
         {
-            References = new List<string>();
-            VersionDefines = new List<string>();
-            IncludePlatforms = new List<string>();
-            ExcludePlatforms = new List<string>();
-            DefineConstraints = new List<string>();
-            PrecompiledReferences = new List<string>();
-            OptionalUnityReferences = new List<string>();
+            references = new List<string>();
+            versionDefines = new List<string>();
+            includePlatforms = new List<string>();
+            excludePlatforms = new List<string>();
+            defineConstraints = new List<string>();
+            precompiledReferences = new List<string>();
+            optionalUnityReferences = new List<string>();
         }
 
         public AssemblyDefinition(string name)
+            : base()
         {
-            this.name = name;
-            References = new List<string>();
-            VersionDefines = new List<string>();
-            IncludePlatforms = new List<string>();
-            ExcludePlatforms = new List<string>();
-            DefineConstraints = new List<string>();
-            PrecompiledReferences = new List<string>();
-            OptionalUnityReferences = new List<string>();
-        }
+            name.ThrowIfNull(nameof(name));
 
-        public string Name
-        {
-            get => name;
-            set => name = value;
-        }
-        public bool AutoReferenced
-        {
-            get => autoReferenced;
-            set => autoReferenced = value;
-        }
-        public bool AllowUnsafeCode
-        {
-            get => allowUnsafeCode;
-            set => allowUnsafeCode = value;
-        }
-        public bool OverrideReferences
-        {
-            get => overrideReferences;
-            set => overrideReferences = value;
-        }
-        public List<string> References
-        {
-            get => references;
-            set => references = value;
-        }
-        public List<string> VersionDefines
-        {
-            get => versionDefines;
-            set => versionDefines = value;
-        }
-        public List<string> IncludePlatforms
-        {
-            get => includePlatforms;
-            set => includePlatforms = value;
-        }
-        public List<string> ExcludePlatforms
-        {
-            get => excludePlatforms;
-            set => excludePlatforms = value;
-        }
-        public List<string> DefineConstraints
-        {
-            get => defineConstraints;
-            set => defineConstraints = value;
-        }
-        public List<string> PrecompiledReferences
-        {
-            get => precompiledReferences;
-            set => precompiledReferences = value;
-        }
-        public List<string> OptionalUnityReferences
-        {
-            get => optionalUnityReferences;
-            set => optionalUnityReferences = value;
+            this.name = name;
         }
     }
 }

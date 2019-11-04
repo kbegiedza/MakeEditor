@@ -7,19 +7,25 @@ namespace Bloodstone.MakeEditor
     {
         public static void WriteAssemblyDefinition(string path, AssemblyDefinition assemblyDefinition)
         {
+            path.ThrowIfNull(nameof(path));
+            assemblyDefinition.ThrowIfNull(nameof(assemblyDefinition));
+
             var serializedObject = JsonUtility.ToJson(assemblyDefinition, true);
 
             WriteText(path, serializedObject);
         }
 
-        public static void WriteText(string path, string text, bool allowOverride = false)
+        public static void WriteText(string path, string text)
         {
-            PrepareFileDirectory(path);
+            path.ThrowIfNull(nameof(path));
+            text.ThrowIfNull(nameof(text));
+
+            CreateFileDirectory(path);
 
             File.WriteAllText(path, text);
         }
 
-        public static void PrepareFileDirectory(string fileDirectory)
+        private static void CreateFileDirectory(string fileDirectory)
         {
             var requiredDirectory = Path.GetDirectoryName(fileDirectory);
 
