@@ -9,10 +9,10 @@ namespace Bloodstone.MakeEditor
 {
     public static class AssemblyDefinitionGenerator
     {
-        public static void UpdateOrCreateAssemblyDefinitionAsset(string sourceScriptAssemblyPath, string newEditorScriptPath)
+        public static void UpdateOrCreateAssemblyDefinitionAsset(string sourceAssemblyPath, string newEditorScriptPath)
         {
-            sourceScriptAssemblyPath.ThrowIfNull(nameof(sourceScriptAssemblyPath));
-            newEditorScriptPath.ThrowIfNull(nameof(sourceScriptAssemblyPath));
+            sourceAssemblyPath.ThrowIfNull(nameof(sourceAssemblyPath));
+            newEditorScriptPath.ThrowIfNull(nameof(sourceAssemblyPath));
 
             var existingAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(newEditorScriptPath);
             if (existingAssemblyPath == null)
@@ -21,7 +21,7 @@ namespace Bloodstone.MakeEditor
             }
 
             var editorAssemblyGuid = AssetDatabase.AssetPathToGUID(existingAssemblyPath);
-            var sourceAssemblyGuid = AssetDatabase.AssetPathToGUID(sourceScriptAssemblyPath);
+            var sourceAssemblyGuid = AssetDatabase.AssetPathToGUID(sourceAssemblyPath);
             var sourceAssemblyReference = GetAssemblyGuidReference(sourceAssemblyGuid);
 
             AssemblyDefinition existingAssembly = LoadAssemblyFromPath(existingAssemblyPath);
@@ -29,13 +29,18 @@ namespace Bloodstone.MakeEditor
             var editorAssemblyCreationRequired = !existingAssembly.includePlatforms.Contains(PathUtility.EditorSuffix);
             if (editorAssemblyCreationRequired)
             {
-                CreateNewAssemblyDefinition(sourceScriptAssemblyPath, sourceAssemblyReference);
+                CreateNewAssemblyDefinition(sourceAssemblyPath, sourceAssemblyReference);
             }
-            else if (sourceAssemblyGuid != editorAssemblyGuid
-                    && !existingAssembly.references.Contains(sourceAssemblyReference)
-                    && !existingAssembly.references.Contains(existingAssembly.name))
+            else if (IsAddReferenceRequired())
             {
                 AddReferenceToAssemblyDefinition(existingAssemblyPath, sourceAssemblyReference, existingAssembly);
+            }
+
+            bool IsAddReferenceRequired()
+            {
+                return sourceAssemblyGuid != editorAssemblyGuid
+                        && !existingAssembly.references.Contains(sourceAssemblyReference)
+                        && !existingAssembly.references.Contains(existingAssembly.name);
             }
         }
 
