@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -13,13 +13,11 @@ namespace Bloodstone.MakeEditor
     {
         private const string _overrideMessageFormat = "Are you sure you want to override {0} ?";
 
-        private static readonly EditorDialog _overrideDialog;
+        private static readonly EditorDialog _overrideDialog = new EditorDialog("Override script?", "Yes", "No");
         private static readonly string _editorTemplatePath;
 
         static MakeEditor()
         {
-            _overrideDialog = new EditorDialog("Override script?", "Yes", "No");
-
             try
             {
                 _editorTemplatePath = PathUtility.FindEditorTemplatePath();
@@ -31,7 +29,7 @@ namespace Bloodstone.MakeEditor
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80, validate = true)]
-        public static bool ValidateCreateEditorScriptForSelection()
+        public static bool ValidateCreateEditorScriptsForSelection()
         {
             return !EditorApplication.isCompiling 
                     && Selection.GetFiltered<MonoScript>(SelectionMode.Assets)
@@ -39,18 +37,15 @@ namespace Bloodstone.MakeEditor
         }
 
         [MenuItem("Assets/Create/C# Editor script", priority = 80)]
-        public static void CreateEditorScriptForSelection()
+        public static void CreateEditorScriptsForSelection()
         {
             var selectedScripts = Selection.GetFiltered<MonoScript>(SelectionMode.Assets);
-            CreateEditorScript(selectedScripts);
+            CreateEditorScripts(selectedScripts);
         }
 
-        public static void CreateEditorScript(params MonoScript[] selectedScripts)
+        public static void CreateEditorScripts(params MonoScript[] selectedScripts)
         {
-            if (selectedScripts == null)
-            {
-                throw new ArgumentNullException(nameof(selectedScripts));
-            }
+            selectedScripts.ThrowIfNull(nameof(selectedScripts));
 
             if (selectedScripts.Length <= 0)
             {
@@ -62,34 +57,41 @@ namespace Bloodstone.MakeEditor
                 string[] editorScriptTemplate = File.ReadAllLines(_editorTemplatePath);
                 string lastCreatedScriptPath = null;
 
-                foreach (var selectedScript in selectedScripts)
+                foreach (var script in selectedScripts)
                 {
-                    var selectedScriptPath = AssetDatabase.GetAssetPath(selectedScript);
-                    var selectedScriptAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(selectedScriptPath);
-                    bool isEditorAssemblyRequired = selectedScriptAssemblyPath != null;
-
-                    var scriptSavePath = PathUtility.GetEditorScriptPath(selectedScriptAssemblyPath, selectedScriptPath);
-                    if (!IsOverrideAllowed(scriptSavePath))
-                    {
-                        continue;
-                    }
-
-                    //deep copy to prevent template modifications
+                    // deep copy to prevent template modification
                     var editorScriptCode = editorScriptTemplate.ToList();
-                    var relatedScript = AssetDatabase.LoadAssetAtPath<MonoScript>(selectedScriptPath);
-                    EditorScriptGenerator.CreateEditorScript(editorScriptCode, scriptSavePath, relatedScript);
 
-                    if (isEditorAssemblyRequired)
-                    {
-                        AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(selectedScriptAssemblyPath, scriptSavePath);
-                    }
-
-                    lastCreatedScriptPath = scriptSavePath;
+                    lastCreatedScriptPath = CreateEditorScript(script, editorScriptCode);
                 }
 
                 AssetDatabase.Refresh();
                 SelectLastCreatedAsset(lastCreatedScriptPath);
             }
+        }
+
+        private static string CreateEditorScript(MonoScript sourceScript, List<string> editorScriptCode)
+        {
+            var sourceScriptPath = AssetDatabase.GetAssetPath(sourceScript);
+            var sourceAssemblyPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromScriptPath(sourceScriptPath);
+
+            var scriptSavePath = PathUtility.GetEditorScriptPath(sourceAssemblyPath, sourceScriptPath);
+
+            if (File.Exists(scriptSavePath) &&
+                !IsOverrideAllowed(scriptSavePath))
+            {
+                return null;
+            }
+
+            EditorScriptGenerator.CreateEditorScript(editorScriptCode, scriptSavePath, sourceScript);
+
+            bool isEditorAssemblyRequired = sourceAssemblyPath != null;
+            if (isEditorAssemblyRequired)
+            {
+                AssemblyDefinitionGenerator.UpdateOrCreateAssemblyDefinitionAsset(sourceAssemblyPath, scriptSavePath);
+            }
+
+            return scriptSavePath;
         }
 
         private static void SelectLastCreatedAsset(string assetPath)
@@ -103,11 +105,6 @@ namespace Bloodstone.MakeEditor
 
         private static bool IsOverrideAllowed(string scriptPath)
         {
-            if (!File.Exists(scriptPath))
-            {
-                return true;
-            }
-
             var message = string.Format(_overrideMessageFormat, scriptPath);
             var selectedOption = _overrideDialog.Show(message);
 

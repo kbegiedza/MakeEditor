@@ -10,6 +10,10 @@ namespace Bloodstone.MakeEditor
 
         public EditorDialog(string title, string acceptText, string declineText)
         {
+            title.ThrowIfNull(nameof(title));
+            acceptText.ThrowIfNull(nameof(acceptText));
+            declineText.ThrowIfNull(nameof(declineText));
+
             Title = title;
             AcceptText = acceptText;
             DeclineText = declineText;
@@ -17,6 +21,8 @@ namespace Bloodstone.MakeEditor
 
         public Option Show(string message)
         {
+            message.ThrowIfNull(nameof(message));
+
             var result = EditorUtility.DisplayDialog(Title, message, AcceptText, DeclineText);
             return result ? Option.Accepted : Option.Declined;
         }

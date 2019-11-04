@@ -1,7 +1,6 @@
 ﻿using System.IO;
 using System.Text;
 using UnityEditor;
-using UnityEditor.Compilation;
 
 namespace Bloodstone.MakeEditor
 {
@@ -16,37 +15,44 @@ namespace Bloodstone.MakeEditor
 
         public static string GetEditorAssemblyDefinitionPath(string relatedAssemblyPath)
         {
+            relatedAssemblyPath.ThrowIfNull(nameof(relatedAssemblyPath));
+
             var relatedAssemblyName = Path.GetFileNameWithoutExtension(relatedAssemblyPath);
 
             var rootPath = Path.GetDirectoryName(relatedAssemblyPath);
-            var editorPath = Path.Combine(rootPath, PathUtility.EditorSuffix);
+            var editorPath = Path.Combine(rootPath, EditorSuffix);
 
             var filenameWithExtension = BuildFilename(relatedAssemblyName, Extensions.AssemblyDefinition);
+
             return Path.Combine(editorPath, filenameWithExtension);
         }
 
         public static string GetEditorScriptPath(string assemblyPath, string scriptPath)
         {
+            scriptPath.ThrowIfNull(nameof(scriptPath));
+
             var rootPath = assemblyPath != null
                 ? Path.GetDirectoryName(assemblyPath)
-                : PathUtility.AssetsFolder;
+                : AssetsFolder;
 
-            int relativePathStart = rootPath.Length + 1;
+            int relativePathStartIndex = rootPath.Length + 1;
 
-            var scriptRelativePath = Path.GetDirectoryName(scriptPath.Substring(relativePathStart));
+            var scriptRelativePath = Path.GetDirectoryName(scriptPath.Substring(relativePathStartIndex));
             var editorPath = Path.Combine(rootPath, EditorSuffix);
-            var dirPath = Path.Combine(editorPath, scriptRelativePath);
+            var directoryPath = Path.Combine(editorPath, scriptRelativePath);
 
-            var name = Path.GetFileNameWithoutExtension(scriptPath);
-            var filenameWithExtension = BuildFilename(name, Extensions.CSharpScript);
-            var outputPath = Path.Combine(dirPath, filenameWithExtension);
+            var scriptName = Path.GetFileNameWithoutExtension(scriptPath);
+            var filename = BuildFilename(scriptName, Extensions.CSharpScript);
 
-            return outputPath;
+            return Path.Combine(directoryPath, filename);
         }
 
         public static string BuildFilename(string filename, string extension)
         {
-            char separator = '.';
+            filename.ThrowIfNull(filename);
+            extension.ThrowIfNull(extension);
+
+            const char separator = '.';
 
             StringBuilder builder = new StringBuilder(filename);
             builder.Append(EditorSuffix);
@@ -61,10 +67,12 @@ namespace Bloodstone.MakeEditor
             var guids = AssetDatabase.FindAssets(_pluginAssemblyFilter);
             if (guids.Length <= 0)
             {
-                throw new FileNotFoundException("Cannot find Bloodstone.MakeEditor assembly definition.");
+                throw new FileNotFoundException("Cannot find Bloodstone.MakeEditor assembly definition. Please try reimport plugin.");
             }
 
-            var pluginPath = Path.GetDirectoryName(AssetDatabase.GUIDToAssetPath(guids[0]));
+            var firstGUID = AssetDatabase.GUIDToAssetPath(guids[0]);
+            var pluginPath = Path.GetDirectoryName(firstGUID);
+
             return Path.Combine(pluginPath, _templateFolder, _editorTemplateName);
         }
 
